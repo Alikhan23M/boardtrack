@@ -18,6 +18,7 @@ const normalizeField = (field) => {
 
 const FormModal = ({ isOpen, onClose, onSubmit, fields, initialData, title = "Manage Record" }) => {
   const [form, setForm] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setForm(initialData || {});
@@ -28,9 +29,17 @@ const FormModal = ({ isOpen, onClose, onSubmit, fields, initialData, title = "Ma
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = () => {
-    onSubmit(form);
-    onClose();
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onSubmit(form);
+      onClose();
+    } catch (error) {
+      // Keep modal open when submit fails.
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -82,10 +91,11 @@ const FormModal = ({ isOpen, onClose, onSubmit, fields, initialData, title = "Ma
         <button
           type="button"
           onClick={handleSubmit}
-          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+          disabled={isSubmitting}
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
-          Save
+          {isSubmitting ? "Saving..." : "Save"}
         </button>
       </div>
     </Modal>

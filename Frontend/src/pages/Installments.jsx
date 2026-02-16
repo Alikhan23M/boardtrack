@@ -3,6 +3,7 @@ import useCrud from "../hooks/useCrud";
 import Table from "../components/Table";
 import Modal from "../components/Modal";
 import { Plus, ReceiptText, Save } from "lucide-react";
+import { toast } from "sonner";
 
 const defaultForm = {
   dealId: "",
@@ -17,6 +18,7 @@ const Installments = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(defaultForm);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -40,19 +42,28 @@ const Installments = () => {
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     const payload = {
       dealId: Number(form.dealId),
       amount: Number(form.amount),
       ...(form.createdAt ? { createdAt: form.createdAt } : {}),
     };
 
-    if (editing?.id) {
-      await updateItem(editing.id, payload);
-    } else {
-      await createItem(payload);
+    try {
+      if (editing?.id) {
+        await updateItem(editing.id, payload);
+        toast.success("Installment updated successfully.");
+      } else {
+        await createItem(payload);
+        toast.success("Installment created successfully.");
+      }
+      setIsOpen(false);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Unable to save installment.");
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsOpen(false);
   };
 
   return (
@@ -139,10 +150,11 @@ const Installments = () => {
         <button
           type="button"
           onClick={handleSave}
-          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+          disabled={isSaving}
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
-          Save Installment
+          {isSaving ? "Saving..." : "Save Installment"}
         </button>
       </Modal>
     </div>

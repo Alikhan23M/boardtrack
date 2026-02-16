@@ -31,6 +31,8 @@ const Deals = () => {
   const [installmentDeal, setInstallmentDeal] = useState(null);
   const [installmentAmount, setInstallmentAmount] = useState("");
   const [installmentError, setInstallmentError] = useState("");
+  const [isSavingDeal, setIsSavingDeal] = useState(false);
+  const [isSavingInstallment, setIsSavingInstallment] = useState(false);
 
   useEffect(() => {
     if (!dealForm.boardId || !dealForm.startDate || !dealForm.endDate) return;
@@ -102,6 +104,8 @@ const Deals = () => {
   };
 
   const handleSaveDeal = async () => {
+    if (isSavingDeal) return;
+    setIsSavingDeal(true);
     const payload = {
       clientId: Number(dealForm.clientId),
       boardId: Number(dealForm.boardId),
@@ -122,6 +126,8 @@ const Deals = () => {
       setIsDealModalOpen(false);
     } catch (error) {
       toast.error(error?.response?.data?.message || "Unable to save deal.");
+    } finally {
+      setIsSavingDeal(false);
     }
   };
 
@@ -134,6 +140,7 @@ const Deals = () => {
 
   const handleAddInstallment = async () => {
     if (!installmentDeal) return;
+    if (isSavingInstallment) return;
 
     const amount = Number(installmentAmount);
     const remaining = Number(installmentDeal.remainingAmount || 0);
@@ -148,6 +155,7 @@ const Deals = () => {
       return;
     }
 
+    setIsSavingInstallment(true);
     try {
       await createInstallment({
         dealId: installmentDeal.id,
@@ -159,6 +167,8 @@ const Deals = () => {
     } catch (error) {
       setInstallmentError(error?.response?.data?.message || "Failed to add installment.");
       toast.error(error?.response?.data?.message || "Failed to add installment.");
+    } finally {
+      setIsSavingInstallment(false);
     }
   };
 
@@ -398,10 +408,11 @@ const Deals = () => {
         <button
           type="button"
           onClick={handleSaveDeal}
-          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+          disabled={isSavingDeal}
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
-          Save Deal
+          {isSavingDeal ? "Saving..." : "Save Deal"}
         </button>
       </Modal>
 
@@ -426,10 +437,11 @@ const Deals = () => {
         <button
           type="button"
           onClick={handleAddInstallment}
-          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+          disabled={isSavingInstallment}
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
-          Save Installment
+          {isSavingInstallment ? "Saving..." : "Save Installment"}
         </button>
       </Modal>
     </div>

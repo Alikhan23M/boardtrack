@@ -3,6 +3,7 @@ import useCrud from "../hooks/useCrud";
 import Table from "../components/Table";
 import Modal from "../components/Modal";
 import { Plus, Printer, Save } from "lucide-react";
+import { toast } from "sonner";
 
 const defaultForm = {
   clientId: "",
@@ -19,6 +20,7 @@ const Printings = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(defaultForm);
+  const [isSaving, setIsSaving] = useState(false);
 
   const openCreate = () => {
     setEditing(null);
@@ -43,7 +45,9 @@ const Printings = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     const payload = {
       clientId: Number(form.clientId),
       printingType: form.printingType,
@@ -52,13 +56,20 @@ const Printings = () => {
       status: form.status,
     };
 
-    if (editing?.id) {
-      updateItem(editing.id, payload);
-    } else {
-      createItem(payload);
+    try {
+      if (editing?.id) {
+        await updateItem(editing.id, payload);
+        toast.success("Printing job updated successfully.");
+      } else {
+        await createItem(payload);
+        toast.success("Printing job created successfully.");
+      }
+      setIsOpen(false);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Unable to save printing job.");
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsOpen(false);
   };
 
   return (
@@ -180,10 +191,11 @@ const Printings = () => {
         <button
           type="button"
           onClick={handleSave}
-          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+          disabled={isSaving}
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
-          Save Printing Job
+          {isSaving ? "Saving..." : "Save Printing Job"}
         </button>
       </Modal>
     </div>

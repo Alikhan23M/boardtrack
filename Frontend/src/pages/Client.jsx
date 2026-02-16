@@ -3,6 +3,7 @@ import useCrud from "../hooks/useCrud";
 import Table from "../components/Table";
 import FormModal from "../components/FormModal";
 import { Plus, Users } from "lucide-react";
+import { toast } from "sonner";
 
 const clientFields = [
   { name: "name", label: "Client Name", placeholder: "Acme Corp" },
@@ -15,15 +16,19 @@ const Clients = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const handleSave = (form) => {
-    if (editing) {
-      updateItem(editing.id, form);
-      // reset form data to make form empty
+  const handleSave = async (form) => {
+    try {
+      if (editing) {
+        await updateItem(editing.id, form);
+        toast.success("Client updated successfully.");
+      } else {
+        await createItem(form);
+        toast.success("Client created successfully.");
+      }
       setEditing(null);
-    } else {
-      createItem(form);
-      // reset form data to make form empty
-      setEditing(null);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Unable to save client.");
+      throw error;
     }
   };
 
