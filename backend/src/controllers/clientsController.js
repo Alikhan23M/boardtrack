@@ -28,6 +28,7 @@ export const createClient = async (req, res) => {
         const client = await prisma.client.create({ data: req.body });
         res.status(201).json({ success: true, data: client, message: "Client created successfully" });
     } catch (error) {
+        console.log(error);
         res.status(500).json({ success: false, message: error.message });
     }
 };

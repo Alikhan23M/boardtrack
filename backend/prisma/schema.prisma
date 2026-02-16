@@ -7,6 +7,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+
+// enums 
+enum BOARD_STATUS {
+  AVAILABLE
+  OCCUPIED
+}
 model Client {
   id               Int                @id @default(autoincrement())
   name             String
@@ -22,7 +28,7 @@ model Board {
   location       String
   frontSide      String
   price          Float
-  status         String
+  status         BOARD_STATUS @default(AVAILABLE)
   availableDate  DateTime?
   deals          Deal[]
   reminders      Reminder[]
@@ -34,9 +40,9 @@ model Deal {
   boardId    Int
   startDate  DateTime
   endDate    DateTime
-  paymentType String
   amount     Float
   paidAmount Float
+  remainingAmount Float
   client     Client       @relation(fields: [clientId], references: [id])
   board      Board        @relation(fields: [boardId], references: [id])
   installments Installment[]
@@ -45,10 +51,9 @@ model Deal {
 model Installment {
   id      Int    @id @default(autoincrement())
   dealId  Int
-  dueDate DateTime
   amount  Float
-  status  String
   deal    Deal   @relation(fields: [dealId], references: [id])
+  createdAt DateTime @default(now())
 }
 
 model PrintingService {
