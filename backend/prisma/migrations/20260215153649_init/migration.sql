@@ -28,9 +28,10 @@ CREATE TABLE "Deal" (
     "boardId" INTEGER NOT NULL,
     "startDate" TIMESTAMP(3) NOT NULL,
     "endDate" TIMESTAMP(3) NOT NULL,
-    "paymentType" TEXT NOT NULL,
+    "paymentType" TEXT DEFAULT 'Installments',
     "amount" DOUBLE PRECISION NOT NULL,
     "paidAmount" DOUBLE PRECISION NOT NULL,
+    "remainingAmount" DOUBLE PRECISION NOT NULL,
 
     CONSTRAINT "Deal_pkey" PRIMARY KEY ("id")
 );

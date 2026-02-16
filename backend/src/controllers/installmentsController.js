@@ -3,7 +3,15 @@ import prisma from "../../prisma/client.js";
 export const getInstallments = async (req, res) => {
     try {
         const installments = await prisma.installment.findMany({
-            include: { deal: true },
+            include: {
+                deal: {
+                    include: {
+                        client: true,
+                        board: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
         });
         res.json({ success: true, data: installments });
     } catch (error) {
@@ -13,9 +21,58 @@ export const getInstallments = async (req, res) => {
 
 export const createInstallment = async (req, res) => {
     try {
-        const installment = await prisma.installment.create({ data: req.body });
+        const data = req.body;
+        const dealId = Number(data.dealId);
+        const amount = Number(data.amount);
+
+        if (!dealId || !amount || amount <= 0) {
+            return res.status(400).json({ success: false, message: "Valid dealId and amount are required" });
+        }
+
+        const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+        if (!deal) {
+            return res.status(404).json({ success: false, message: "Deal not found" });
+        }
+
+        if (deal.remainingAmount < amount) {
+            return res
+                .status(400)
+                .json({ success: false, message: "Amount greater than remaining amount cannot be deposited" });
+        }
+
+        const installment = await prisma.$transaction(async (tx) => {
+            const createdInstallment = await tx.installment.create({
+                data: {
+                    dealId,
+                    amount,
+                    ...(data.createdAt ? { createdAt: new Date(data.createdAt) } : {}),
+                },
+            });
+
+            await tx.deal.update({
+                where: { id: dealId },
+                data: {
+                    paidAmount: deal.paidAmount + amount,
+                    remainingAmount: deal.remainingAmount - amount,
+                },
+            });
+
+            return tx.installment.findUnique({
+                where: { id: createdInstallment.id },
+                include: {
+                    deal: {
+                        include: {
+                            client: true,
+                            board: true,
+                        },
+                    },
+                },
+            });
+        });
+
         res.status(201).json({ success: true, data: installment, message: "Installment added" });
     } catch (error) {
+        console.log(error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
