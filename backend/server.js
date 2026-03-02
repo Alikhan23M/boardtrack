@@ -10,6 +10,8 @@ import dealRoutes from "./src/routes/deals.js";
 import installmentRoutes from "./src/routes/installments.js";
 import printingRoutes from "./src/routes/printingServices.js";
 import reminderRoutes from "./src/routes/reminders.js";
+import receiptRoutes from "./src/routes/receipts.js";
+import { startBoardAvailabilityCron } from "./src/cron/boardAvailabilityJob.js";
 
 dotenv.config();
 const app = express();
@@ -79,24 +81,41 @@ const swaggerOptions = {
           properties: {
             id: { type: "integer", example: 1 },
             clientId: { type: "integer", example: 1 },
-            boardId: { type: "integer", example: 2 },
+            dealBoards: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  boardId: { type: "integer", example: 2 },
+                  startDate: { type: "string", format: "date-time" },
+                  endDate: { type: "string", format: "date-time" },
+                },
+              },
+            },
             startDate: { type: "string", format: "date-time" },
             endDate: { type: "string", format: "date-time" },
-            paymentType: { type: "string", example: "installments" },
             amount: { type: "number", format: "float", example: 5000 },
             paidAmount: { type: "number", format: "float", example: 2500 },
+            remainingAmount: { type: "number", format: "float", example: 2500 },
           },
         },
         DealInput: {
           type: "object",
-          required: ["clientId", "boardId", "startDate", "endDate", "paymentType", "amount", "paidAmount"],
+          required: ["clientId", "boardSelections", "paidAmount"],
           properties: {
             clientId: { type: "integer", example: 1 },
-            boardId: { type: "integer", example: 2 },
-            startDate: { type: "string", format: "date-time" },
-            endDate: { type: "string", format: "date-time" },
-            paymentType: { type: "string", example: "installments" },
-            amount: { type: "number", format: "float", example: 5000 },
+            boardSelections: {
+              type: "array",
+              items: {
+                type: "object",
+                required: ["boardId", "startDate", "endDate"],
+                properties: {
+                  boardId: { type: "integer", example: 2 },
+                  startDate: { type: "string", format: "date-time" },
+                  endDate: { type: "string", format: "date-time" },
+                },
+              },
+            },
             paidAmount: { type: "number", format: "float", example: 2500 },
           },
         },
@@ -105,19 +124,17 @@ const swaggerOptions = {
           properties: {
             id: { type: "integer", example: 1 },
             dealId: { type: "integer", example: 1 },
-            dueDate: { type: "string", format: "date-time" },
             amount: { type: "number", format: "float", example: 1000 },
-            status: { type: "string", example: "pending" },
+            createdAt: { type: "string", format: "date-time" },
           },
         },
         InstallmentInput: {
           type: "object",
-          required: ["dealId", "dueDate", "amount", "status"],
+          required: ["dealId", "amount"],
           properties: {
             dealId: { type: "integer", example: 1 },
-            dueDate: { type: "string", format: "date-time" },
             amount: { type: "number", format: "float", example: 1000 },
-            status: { type: "string", example: "pending" },
+            createdAt: { type: "string", format: "date-time" },
           },
         },
         PrintingService: {
@@ -207,7 +224,9 @@ app.use("/api/deals", dealRoutes);
 app.use("/api/installments", installmentRoutes);
 app.use("/api/printing-services", printingRoutes);
 app.use("/api/reminders", reminderRoutes);
+app.use("/api/receipts", receiptRoutes);
 
+startBoardAvailabilityCron();
 
 // Start server
 const PORT = process.env.PORT || 5000;

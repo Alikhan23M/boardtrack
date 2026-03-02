@@ -85,7 +85,11 @@ const Dashboard = () => {
           columns={[
             { key: "id", label: "Deal ID" },
             { key: "client", label: "Client", render: (row) => row.client?.name ?? "-" },
-            { key: "board", label: "Board", render: (row) => row.board?.location ?? "-" },
+            {
+              key: "board",
+              label: "Boards",
+              render: (row) => row.dealBoards?.map((item) => item.board?.location).filter(Boolean).join(", ") ?? "-",
+            },
             { key: "amount", label: "Amount", render: (row) => `Rs ${Number(row.amount ?? 0).toLocaleString()}` },
             { key: "paidAmount", label: "Paid", render: (row) => `Rs ${Number(row.paidAmount ?? 0).toLocaleString()}` },
           ]}

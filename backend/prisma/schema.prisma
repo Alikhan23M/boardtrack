@@ -30,22 +30,33 @@ model Board {
   price          Float
   status         BOARD_STATUS @default(AVAILABLE)
   availableDate  DateTime?
-  deals          Deal[]
+  dealBoards     DealBoard[]
   reminders      Reminder[]
 }
 
 model Deal {
   id         Int          @id @default(autoincrement())
   clientId   Int
-  boardId    Int
   startDate  DateTime
   endDate    DateTime
   amount     Float
   paidAmount Float
   remainingAmount Float
   client     Client       @relation(fields: [clientId], references: [id])
-  board      Board        @relation(fields: [boardId], references: [id])
+  dealBoards DealBoard[]
   installments Installment[]
+}
+
+model DealBoard {
+  id      Int   @id @default(autoincrement())
+  dealId  Int
+  boardId Int
+  startDate DateTime @default(now())
+  endDate   DateTime @default(now())
+  deal    Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  board   Board @relation(fields: [boardId], references: [id])
+
+  @@unique([dealId, boardId])
 }
 
 model Installment {

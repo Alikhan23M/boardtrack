@@ -91,7 +91,12 @@ const Installments = () => {
           { key: "id", label: "ID" },
           { key: "deal", label: "Deal", render: (row) => `#${row.dealId}` },
           { key: "client", label: "Client", render: (row) => row.deal?.client?.name ?? "-" },
-          { key: "board", label: "Board", render: (row) => row.deal?.board?.location ?? "-" },
+          {
+            key: "board",
+            label: "Boards",
+            render: (row) =>
+              row.deal?.dealBoards?.map((item) => item.board?.location).filter(Boolean).join(", ") || "-",
+          },
           { key: "amount", label: "Amount", render: (row) => `Rs ${Number(row.amount ?? 0).toLocaleString()}` },
           { key: "createdAt", label: "Created At" },
         ]}

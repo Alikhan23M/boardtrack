@@ -7,7 +7,11 @@ export const getInstallments = async (req, res) => {
                 deal: {
                     include: {
                         client: true,
-                        board: true,
+                        dealBoards: {
+                            include: {
+                                board: true,
+                            },
+                        },
                     },
                 },
             },
@@ -63,7 +67,11 @@ export const createInstallment = async (req, res) => {
                     deal: {
                         include: {
                             client: true,
-                            board: true,
+                            dealBoards: {
+                                include: {
+                                    board: true,
+                                },
+                            },
                         },
                     },
                 },

@@ -1,16 +1,91 @@
 import { useEffect, useMemo, useState } from "react";
+import api from "../api/axios";
 import useCrud from "../hooks/useCrud";
 import Modal from "../components/Modal";
 import { toast } from "sonner";
-import { BadgeDollarSign, CalendarDays, MapPin, Pencil, Plus, ReceiptText, Save, Trash2, User } from "lucide-react";
+import {
+  BadgeDollarSign,
+  CalendarDays,
+  Download,
+  FileText,
+  MapPin,
+  Pencil,
+  Plus,
+  Printer,
+  ReceiptText,
+  Save,
+  Trash2,
+  User,
+} from "lucide-react";
 
 const defaultDealForm = {
   clientId: "",
-  boardId: "",
-  startDate: "",
-  endDate: "",
+  boardSelections: [],
   amount: 0,
   paidAmount: 0,
+};
+
+const formatCurrency = (value) => `Rs ${Number(value ?? 0).toLocaleString()}`;
+
+const daysBetween = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  return Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+};
+
+const openPrintWindow = (deal) => {
+  const boardRows = (deal.dealBoards || [])
+    .map((item) => {
+      const dayDiff = daysBetween(item.startDate, item.endDate);
+      const subtotal = Number(item.board?.price || 0) * Math.max(dayDiff, 0);
+      return `
+        <tr>
+          <td style="padding:8px;border:1px solid #ddd;">${item.board?.location ?? "-"}</td>
+          <td style="padding:8px;border:1px solid #ddd;">${item.board?.size ?? "-"}</td>
+          <td style="padding:8px;border:1px solid #ddd;">${new Date(item.startDate).toLocaleDateString()} - ${new Date(item.endDate).toLocaleDateString()}</td>
+          <td style="padding:8px;border:1px solid #ddd;">${formatCurrency(subtotal)}</td>
+        </tr>`;
+    })
+    .join("");
+
+  const installmentRows = (deal.installments || [])
+    .map(
+      (item) => `
+      <tr>
+        <td style="padding:8px;border:1px solid #ddd;">#${item.id}</td>
+        <td style="padding:8px;border:1px solid #ddd;">${formatCurrency(item.amount)}</td>
+        <td style="padding:8px;border:1px solid #ddd;">${new Date(item.createdAt).toLocaleDateString()}</td>
+      </tr>`,
+    )
+    .join("");
+
+  const html = `
+    <div style="font-family:Segoe UI, Arial, sans-serif; padding:24px;">
+      <h1 style="margin:0 0 8px 0;">BoardTrack Receipt</h1>
+      <p style="margin:0 0 16px 0;color:#555;">Deal #${deal.id}</p>
+      <p><strong>Client:</strong> ${deal.client?.name ?? "-"}</p>
+      <p><strong>Total:</strong> ${formatCurrency(deal.amount)}</p>
+      <p><strong>Paid:</strong> ${formatCurrency(deal.paidAmount)}</p>
+      <p><strong>Remaining:</strong> ${formatCurrency(deal.remainingAmount)}</p>
+      <h3>Boards</h3>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+        <thead><tr><th style="padding:8px;border:1px solid #ddd;text-align:left;">Location</th><th style="padding:8px;border:1px solid #ddd;text-align:left;">Size</th><th style="padding:8px;border:1px solid #ddd;text-align:left;">Period</th><th style="padding:8px;border:1px solid #ddd;text-align:left;">Subtotal</th></tr></thead>
+        <tbody>${boardRows || '<tr><td colspan="4" style="padding:8px;border:1px solid #ddd;">No boards</td></tr>'}</tbody>
+      </table>
+      <h3>Installments</h3>
+      <table style="width:100%; border-collapse:collapse;">
+        <thead><tr><th style="padding:8px;border:1px solid #ddd;text-align:left;">ID</th><th style="padding:8px;border:1px solid #ddd;text-align:left;">Amount</th><th style="padding:8px;border:1px solid #ddd;text-align:left;">Date</th></tr></thead>
+        <tbody>${installmentRows || '<tr><td colspan="3" style="padding:8px;border:1px solid #ddd;">No installments</td></tr>'}</tbody>
+      </table>
+    </div>`;
+
+  const win = window.open("", "_blank", "width=900,height=700");
+  if (!win) return;
+  win.document.write(`<html><head><title>Deal Receipt #${deal.id}</title></head><body>${html}</body></html>`);
+  win.document.close();
+  win.focus();
+  win.print();
 };
 
 const Deals = () => {
@@ -34,45 +109,81 @@ const Deals = () => {
   const [isSavingDeal, setIsSavingDeal] = useState(false);
   const [isSavingInstallment, setIsSavingInstallment] = useState(false);
 
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [receiptDeal, setReceiptDeal] = useState(null);
+  const [isLoadingReceipt, setIsLoadingReceipt] = useState(false);
+
   useEffect(() => {
-    if (!dealForm.boardId || !dealForm.startDate || !dealForm.endDate) return;
+    if (dealForm.boardSelections.length === 0) return;
 
-    const selectedBoard = boards.find((board) => board.id === Number(dealForm.boardId));
-    if (!selectedBoard) return;
+    const priceMap = new Map(boards.map((board) => [board.id, Number(board.price || 0)]));
+    let total = 0;
 
-    const start = new Date(dealForm.startDate);
-    const end = new Date(dealForm.endDate);
-    const dayDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-
-    if (dayDiff > 0) {
-      setDealForm((prev) => ({
-        ...prev,
-        amount: Number((dayDiff * Number(selectedBoard.price)).toFixed(2)),
-      }));
+    for (const selection of dealForm.boardSelections) {
+      const price = priceMap.get(selection.boardId) || 0;
+      const days = daysBetween(selection.startDate, selection.endDate);
+      if (days > 0) total += price * days;
     }
-  }, [boards, dealForm.boardId, dealForm.startDate, dealForm.endDate]);
+
+    setDealForm((prev) => ({ ...prev, amount: Number(total.toFixed(2)) }));
+  }, [dealForm.boardSelections, boards]);
 
   const availableBoards = useMemo(() => {
     const inStock = boards.filter((board) => board.status === "AVAILABLE");
-    if (!editingDeal?.boardId) return inStock;
+    if (!editingDeal) return inStock;
 
-    const selectedBoard = boards.find((board) => board.id === editingDeal.boardId);
-    if (!selectedBoard) return inStock;
-    if (selectedBoard.status === "AVAILABLE") return inStock;
-    return [selectedBoard, ...inStock.filter((board) => board.id !== selectedBoard.id)];
+    const editingBoardIds = (editingDeal.dealBoards || []).map((item) => item.boardId);
+    const editingBoards = boards.filter((board) => editingBoardIds.includes(board.id));
+    return [...editingBoards, ...inStock.filter((board) => !editingBoardIds.includes(board.id))];
   }, [boards, editingDeal]);
 
-  const filteredDeals = useMemo(() => {
-    return deals.filter((deal) => {
-      const matchesClient = selectedClientId ? deal.clientId === Number(selectedClientId) : true;
-      const matchesRemaining = remainingOnly ? Number(deal.remainingAmount || 0) > 0 : true;
-      return matchesClient && matchesRemaining;
-    });
-  }, [deals, selectedClientId, remainingOnly]);
+  const filteredDeals = useMemo(
+    () =>
+      deals.filter((deal) => {
+        const matchesClient = selectedClientId ? deal.clientId === Number(selectedClientId) : true;
+        const matchesRemaining = remainingOnly ? Number(deal.remainingAmount || 0) > 0 : true;
+        return matchesClient && matchesRemaining;
+      }),
+    [deals, selectedClientId, remainingOnly],
+  );
 
   const handleDealChange = (event) => {
     const { name, value } = event.target;
     setDealForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const toggleBoardSelection = (boardId) => {
+    setDealForm((prev) => {
+      const exists = prev.boardSelections.some((item) => item.boardId === boardId);
+      if (exists) {
+        return {
+          ...prev,
+          boardSelections: prev.boardSelections.filter((item) => item.boardId !== boardId),
+        };
+      }
+
+      const today = new Date();
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      return {
+        ...prev,
+        boardSelections: [
+          ...prev.boardSelections,
+          {
+            boardId,
+            startDate: today.toISOString().slice(0, 10),
+            endDate: nextWeek.toISOString().slice(0, 10),
+          },
+        ],
+      };
+    });
+  };
+
+  const updateBoardSelectionDate = (boardId, field, value) => {
+    setDealForm((prev) => ({
+      ...prev,
+      boardSelections: prev.boardSelections.map((item) => (item.boardId === boardId ? { ...item, [field]: value } : item)),
+    }));
   };
 
   const openCreateDeal = () => {
@@ -85,9 +196,11 @@ const Deals = () => {
     setEditingDeal(row);
     setDealForm({
       clientId: row.clientId ? String(row.clientId) : "",
-      boardId: row.boardId ? String(row.boardId) : "",
-      startDate: row.startDate ? row.startDate.slice(0, 10) : "",
-      endDate: row.endDate ? row.endDate.slice(0, 10) : "",
+      boardSelections: (row.dealBoards || []).map((item) => ({
+        boardId: item.boardId,
+        startDate: item.startDate ? item.startDate.slice(0, 10) : "",
+        endDate: item.endDate ? item.endDate.slice(0, 10) : "",
+      })),
       amount: row.amount ?? 0,
       paidAmount: row.paidAmount ?? 0,
     });
@@ -105,13 +218,16 @@ const Deals = () => {
 
   const handleSaveDeal = async () => {
     if (isSavingDeal) return;
+    if (!dealForm.boardSelections.length) {
+      toast.error("Please select at least one board.");
+      return;
+    }
+
     setIsSavingDeal(true);
+
     const payload = {
       clientId: Number(dealForm.clientId),
-      boardId: Number(dealForm.boardId),
-      startDate: dealForm.startDate,
-      endDate: dealForm.endDate,
-      amount: Number(dealForm.amount),
+      boardSelections: dealForm.boardSelections,
       paidAmount: Number(dealForm.paidAmount || 0),
     };
 
@@ -139,17 +255,14 @@ const Deals = () => {
   };
 
   const handleAddInstallment = async () => {
-    if (!installmentDeal) return;
-    if (isSavingInstallment) return;
+    if (!installmentDeal || isSavingInstallment) return;
 
     const amount = Number(installmentAmount);
     const remaining = Number(installmentDeal.remainingAmount || 0);
-
     if (!amount || amount <= 0) {
       setInstallmentError("Please enter a valid installment amount.");
       return;
     }
-
     if (amount > remaining) {
       setInstallmentError("Installment cannot be greater than remaining amount.");
       return;
@@ -157,10 +270,7 @@ const Deals = () => {
 
     setIsSavingInstallment(true);
     try {
-      await createInstallment({
-        dealId: installmentDeal.id,
-        amount,
-      });
+      await createInstallment({ dealId: installmentDeal.id, amount });
       await fetchDeals();
       setIsInstallmentModalOpen(false);
       toast.success("Installment added successfully.");
@@ -169,6 +279,20 @@ const Deals = () => {
       toast.error(error?.response?.data?.message || "Failed to add installment.");
     } finally {
       setIsSavingInstallment(false);
+    }
+  };
+
+  const openReceiptModal = async (deal) => {
+    setIsLoadingReceipt(true);
+    setIsReceiptOpen(true);
+    try {
+      const response = await api.get(`/receipts/deals/${deal.id}`);
+      setReceiptDeal(response.data?.data || deal);
+    } catch (error) {
+      setReceiptDeal(deal);
+      toast.error("Could not load full receipt details. Showing available data.");
+    } finally {
+      setIsLoadingReceipt(false);
     }
   };
 
@@ -181,9 +305,7 @@ const Deals = () => {
               <BadgeDollarSign className="h-6 w-6 text-teal-600" />
               Deals
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Filter deals by client, track remaining balances, and add installments directly from each deal.
-            </p>
+            <p className="mt-1 text-sm text-slate-500">Each selected board can have its own start/end period.</p>
           </div>
 
           <button
@@ -226,50 +348,46 @@ const Deals = () => {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filteredDeals.length === 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 md:col-span-2 xl:col-span-3">
-            No deals found for selected filters.
-          </div>
-        )}
-
         {filteredDeals.map((deal) => (
           <article key={deal.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Deal #{deal.id}</p>
                 <h3 className="mt-1 text-lg font-semibold text-slate-900">{deal.client?.name ?? `Client ${deal.clientId}`}</h3>
-                <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                  <MapPin className="h-4 w-4" />
-                  {deal.board?.location ?? `Board ${deal.boardId}`}
-                </p>
               </div>
-
               <span
                 className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${
                   Number(deal.remainingAmount || 0) > 0 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
                 }`}
               >
-                Remaining: Rs {Number(deal.remainingAmount ?? 0).toLocaleString()}
+                Remaining: {formatCurrency(deal.remainingAmount)}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
-                <span className="block text-xs text-slate-500">Total</span>Rs {Number(deal.amount ?? 0).toLocaleString()}
+                <span className="block text-xs text-slate-500">Total</span>
+                {formatCurrency(deal.amount)}
               </p>
               <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
-                <span className="block text-xs text-slate-500">Paid</span>Rs {Number(deal.paidAmount ?? 0).toLocaleString()}
+                <span className="block text-xs text-slate-500">Paid</span>
+                {formatCurrency(deal.paidAmount)}
               </p>
             </div>
 
             <div className="mt-3 space-y-1 text-sm text-slate-600">
-              <p className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-slate-400" />
-                {new Date(deal.startDate).toLocaleDateString()} - {new Date(deal.endDate).toLocaleDateString()}
-              </p>
+              {(deal.dealBoards || []).map((item) => (
+                <p key={item.id} className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 text-slate-400" />
+                  <span>
+                    {item.board?.location ?? "Board"} | <CalendarDays className="inline h-3.5 w-3.5" />{" "}
+                    {new Date(item.startDate).toLocaleDateString()} - {new Date(item.endDate).toLocaleDateString()}
+                  </span>
+                </p>
+              ))}
               <p className="flex items-center gap-2">
                 <User className="h-4 w-4 text-slate-400" />
-                Board: {deal.board?.size ?? "-"}
+                Boards count: {(deal.dealBoards || []).length}
               </p>
             </div>
 
@@ -281,7 +399,7 @@ const Deals = () => {
                 <div className="space-y-1">
                   {deal.installments.map((item) => (
                     <p key={item.id} className="text-xs text-slate-600">
-                      #{item.id} - Rs {Number(item.amount ?? 0).toLocaleString()} - {new Date(item.createdAt).toLocaleDateString()}
+                      #{item.id} - {formatCurrency(item.amount)} - {new Date(item.createdAt).toLocaleDateString()}
                     </p>
                   ))}
                 </div>
@@ -299,7 +417,14 @@ const Deals = () => {
                   Add Installment
                 </button>
               )}
-
+              <button
+                type="button"
+                onClick={() => openReceiptModal(deal)}
+                className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Receipt
+              </button>
               <button
                 type="button"
                 onClick={() => openEditDeal(deal)}
@@ -308,7 +433,6 @@ const Deals = () => {
                 <Pencil className="h-3.5 w-3.5" />
                 Edit
               </button>
-
               <button
                 type="button"
                 onClick={() => handleDeleteDeal(deal.id)}
@@ -324,8 +448,7 @@ const Deals = () => {
 
       <Modal isOpen={isDealModalOpen} onClose={() => setIsDealModalOpen(false)}>
         <h3 className="mb-5 text-xl font-semibold text-slate-900">{editingDeal ? "Edit Deal" : "Create Deal"}</h3>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4">
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium text-slate-700">Client</span>
             <select
@@ -343,53 +466,58 @@ const Deals = () => {
             </select>
           </label>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-700">Board</span>
-            <select
-              name="boardId"
-              value={dealForm.boardId}
-              onChange={handleDealChange}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500"
-            >
-              <option value="">Select Board</option>
-              {availableBoards.map((board) => (
-                <option key={board.id} value={board.id}>
-                  {board.size} - {board.location} {board.status !== "AVAILABLE" ? "(Current deal board)" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-700">Boards (select and set dates per board)</p>
+            <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-slate-300 p-3">
+              {availableBoards.map((board) => {
+                const selected = dealForm.boardSelections.find((item) => item.boardId === board.id);
+                return (
+                  <div key={board.id} className="rounded-md border border-slate-200 p-2">
+                    <label className="flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(selected)}
+                        onChange={() => toggleBoardSelection(board.id)}
+                        className="h-4 w-4 accent-teal-600"
+                      />
+                      {board.size} - {board.location} ({formatCurrency(board.price)}/day)
+                    </label>
+
+                    {selected && (
+                      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs text-slate-500">Start Date</span>
+                          <input
+                            type="date"
+                            value={selected.startDate || ""}
+                            onChange={(e) => updateBoardSelectionDate(board.id, "startDate", e.target.value)}
+                            className="rounded border border-slate-300 px-2 py-1 text-sm outline-none focus:border-teal-500"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs text-slate-500">End Date</span>
+                          <input
+                            type="date"
+                            value={selected.endDate || ""}
+                            onChange={(e) => updateBoardSelectionDate(board.id, "endDate", e.target.value)}
+                            className="rounded border border-slate-300 px-2 py-1 text-sm outline-none focus:border-teal-500"
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-700">Start Date</span>
-            <input
-              type="date"
-              name="startDate"
-              value={dealForm.startDate}
-              onChange={handleDealChange}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500"
-            />
-          </label>
-
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-700">End Date</span>
-            <input
-              type="date"
-              name="endDate"
-              value={dealForm.endDate}
-              onChange={handleDealChange}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500"
-            />
-          </label>
-
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-700">Total Amount</span>
+            <span className="text-sm font-medium text-slate-700">Calculated Total</span>
             <input
               type="number"
-              name="amount"
               value={dealForm.amount}
-              onChange={handleDealChange}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-teal-500"
+              readOnly
+              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm"
             />
           </label>
 
@@ -419,7 +547,7 @@ const Deals = () => {
       <Modal isOpen={isInstallmentModalOpen} onClose={() => setIsInstallmentModalOpen(false)}>
         <h3 className="mb-1 text-xl font-semibold text-slate-900">Add Installment</h3>
         <p className="mb-5 text-sm text-slate-500">
-          Deal #{installmentDeal?.id} remaining amount: Rs {Number(installmentDeal?.remainingAmount ?? 0).toLocaleString()}
+          Deal #{installmentDeal?.id} remaining amount: {formatCurrency(installmentDeal?.remainingAmount)}
         </p>
 
         <label className="flex flex-col gap-2">
@@ -443,6 +571,70 @@ const Deals = () => {
           <Save className="h-4 w-4" />
           {isSavingInstallment ? "Saving..." : "Save Installment"}
         </button>
+      </Modal>
+
+      <Modal isOpen={isReceiptOpen} onClose={() => setIsReceiptOpen(false)}>
+        <div className="max-h-[70vh] overflow-y-auto">
+          <h3 className="mb-4 text-xl font-semibold text-slate-900">Deal Receipt</h3>
+          {isLoadingReceipt && <p className="text-sm text-slate-500">Loading receipt...</p>}
+          {!isLoadingReceipt && receiptDeal && (
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="border-b border-slate-200 pb-3">
+                <p className="text-xs uppercase tracking-wide text-slate-500">BoardTrack</p>
+                <h4 className="text-lg font-bold text-slate-900">Receipt - Deal #{receiptDeal.id}</h4>
+              </div>
+              <div className="grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                <p><strong>Client:</strong> {receiptDeal.client?.name}</p>
+                <p><strong>Total:</strong> {formatCurrency(receiptDeal.amount)}</p>
+                <p><strong>Paid:</strong> {formatCurrency(receiptDeal.paidAmount)}</p>
+                <p><strong>Remaining:</strong> {formatCurrency(receiptDeal.remainingAmount)}</p>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-semibold text-slate-800">Boards</p>
+                <div className="space-y-1 text-sm text-slate-600">
+                  {(receiptDeal.dealBoards || []).map((item) => (
+                    <p key={item.id}>
+                      {item.board?.location} - {item.board?.size} | {new Date(item.startDate).toLocaleDateString()} -{" "}
+                      {new Date(item.endDate).toLocaleDateString()}
+                    </p>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-semibold text-slate-800">Installments</p>
+                {(receiptDeal.installments || []).length === 0 ? (
+                  <p className="text-sm text-slate-500">No installments</p>
+                ) : (
+                  <div className="space-y-1 text-sm text-slate-600">
+                    {receiptDeal.installments.map((item) => (
+                      <p key={item.id}>
+                        #{item.id} - {formatCurrency(item.amount)} - {new Date(item.createdAt).toLocaleDateString()}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => openPrintWindow(receiptDeal)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openPrintWindow(receiptDeal)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+                >
+                  <Download className="h-4 w-4" />
+                  Download PDF
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );
