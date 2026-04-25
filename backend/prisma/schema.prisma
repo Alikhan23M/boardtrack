@@ -1,20 +1,14 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-
-// enums 
-enum BOARD_STATUS {
-  AVAILABLE
-  OCCUPIED
-}
 model Client {
-  id               Int                @id @default(autoincrement())
+  id               Int               @id @default(autoincrement())
   name             String
   address          String
   contact          String
@@ -23,65 +17,87 @@ model Client {
 }
 
 model Board {
-  id             Int       @id @default(autoincrement())
-  size           String
-  location       String
-  frontSide      String
-  price          Float
-  status         BOARD_STATUS @default(AVAILABLE)
-  availableDate  DateTime?
-  dealBoards     DealBoard[]
-  reminders      Reminder[]
+  id            Int          @id @default(autoincrement())
+  size          String
+  location      String
+  frontSide     String
+  price         Float
+  availableDate DateTime?
+  status        BOARD_STATUS @default(AVAILABLE)
+  imageUrl      String?
+  imagePublicId String?
+  featured      Boolean      @default(false)
+  contacts      Contact[]
+  dealBoards    DealBoard[]
+  reminders     Reminder[]
 }
 
 model Deal {
-  id         Int          @id @default(autoincrement())
-  clientId   Int
-  startDate  DateTime
-  endDate    DateTime
-  amount     Float
-  paidAmount Float
+  id              Int           @id @default(autoincrement())
+  clientId        Int
+  startDate       DateTime
+  endDate         DateTime
+  amount          Float
+  paidAmount      Float
   remainingAmount Float
-  client     Client       @relation(fields: [clientId], references: [id])
-  dealBoards DealBoard[]
-  installments Installment[]
+  client          Client        @relation(fields: [clientId], references: [id])
+  dealBoards      DealBoard[]
+  installments    Installment[]
 }
 
 model DealBoard {
-  id      Int   @id @default(autoincrement())
-  dealId  Int
-  boardId Int
-  startDate DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  dealId    Int
+  boardId   Int
   endDate   DateTime @default(now())
-  deal    Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  board   Board @relation(fields: [boardId], references: [id])
+  startDate DateTime @default(now())
+  board     Board    @relation(fields: [boardId], references: [id])
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
 
   @@unique([dealId, boardId])
 }
 
 model Installment {
-  id      Int    @id @default(autoincrement())
-  dealId  Int
-  amount  Float
-  deal    Deal   @relation(fields: [dealId], references: [id])
+  id        Int      @id @default(autoincrement())
+  dealId    Int
+  amount    Float
   createdAt DateTime @default(now())
+  deal      Deal     @relation(fields: [dealId], references: [id])
 }
 
 model PrintingService {
-  id        Int     @id @default(autoincrement())
-  clientId  Int
+  id           Int     @id @default(autoincrement())
+  clientId     Int
   printingType String
-  details   String?
-  price     Float
-  status    String
-  client    Client  @relation(fields: [clientId], references: [id])
+  details      String?
+  price        Float
+  status       String
+  client       Client  @relation(fields: [clientId], references: [id])
 }
 
 model Reminder {
-  id          Int      @id @default(autoincrement())
-  boardId     Int
+  id           Int      @id @default(autoincrement())
+  boardId      Int
   reminderDate DateTime
-  message     String
-  status      String
-  board       Board    @relation(fields: [boardId], references: [id])
+  message      String
+  status       String
+  board        Board    @relation(fields: [boardId], references: [id])
+}
+
+model Contact {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String
+  phone     String
+  boardId   Int?
+  message   String
+  isRead    Boolean?  @default(false)
+  createdAt DateTime? @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime? @default(now()) @updatedAt @db.Timestamptz(6)
+  board     Board?    @relation(fields: [boardId], references: [id], onUpdate: NoAction, map: "fk_board")
+}
+
+enum BOARD_STATUS {
+  AVAILABLE
+  OCCUPIED
 }

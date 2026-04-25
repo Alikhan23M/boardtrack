@@ -4,12 +4,15 @@ import {
    getBoards,
    createBoard,
    updateBoard,
-   deleteBoard
+   deleteBoard,
+   getFeaturedBoards
    
 } from "../controllers/boardsController.js";
+import upload from "../middleware/upload.js";
+
 
 const router = express.Router();
-
+router.get("/featured", getFeaturedBoards);
 /**
  * @swagger
  * /api/boards:
@@ -62,7 +65,7 @@ router.get("/:id", getBoard);
  *       500:
  *         description: Server error
  */
-router.post("/", createBoard);
+// router.post("/", createBoard);
 /**
  * @swagger
  * /api/boards/{id}:
@@ -87,7 +90,7 @@ router.post("/", createBoard);
  *       500:
  *         description: Server error
  */
-router.put("/:id", updateBoard);
+// router.put("/:id", updateBoard);
 /**
  * @swagger
  * /api/boards/{id}:
@@ -106,6 +109,8 @@ router.put("/:id", updateBoard);
  *       500:
  *         description: Server error
  */
+router.get("/featured", getFeaturedBoards);
 router.delete("/:id", deleteBoard);
-
+router.post("/", upload.single("image"), createBoard);
+router.put("/:id", upload.single("image"), updateBoard);
 export default router;

@@ -11,6 +11,7 @@ import installmentRoutes from "./src/routes/installments.js";
 import printingRoutes from "./src/routes/printingServices.js";
 import reminderRoutes from "./src/routes/reminders.js";
 import receiptRoutes from "./src/routes/receipts.js";
+import contactRoutes from "./src/routes/contacts.js";
 import { startBoardAvailabilityCron } from "./src/cron/boardAvailabilityJob.js";
 
 dotenv.config();
@@ -225,6 +226,7 @@ app.use("/api/installments", installmentRoutes);
 app.use("/api/printing-services", printingRoutes);
 app.use("/api/reminders", reminderRoutes);
 app.use("/api/receipts", receiptRoutes);
+app.use("/api/contacts", contactRoutes);
 
 startBoardAvailabilityCron();
 
