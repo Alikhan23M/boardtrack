@@ -16,14 +16,40 @@ const useCrud = (endpoint) => {
     setLoading(false);
   };
 
+  // helper to detect FormData
+  const getConfig = (payload) => {
+    if (payload instanceof FormData) {
+      return {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      };
+    }
+    return {};
+  };
+
   const createItem = async (payload) => {
-    const response = await api.post(endpoint, payload);
+    const response = await api.post(endpoint, payload, getConfig(payload));
     await fetchData();
     return response?.data;
   };
 
   const updateItem = async (id, payload) => {
-    const response = await api.put(`${endpoint}/${id}`, payload);
+    const response = await api.put(
+      `${endpoint}/${id}`,
+      payload,
+      getConfig(payload)
+    );
+    await fetchData();
+    return response?.data;
+  };
+
+  const patchItem = async (id, payload) => {
+    const response = await api.patch(
+      `${endpoint}/${id}`,
+      payload,
+      getConfig(payload)
+    );
     await fetchData();
     return response?.data;
   };
@@ -34,11 +60,12 @@ const useCrud = (endpoint) => {
     return response?.data;
   };
 
+  
   useEffect(() => {
     fetchData();
   }, [endpoint]);
 
-  return { data, loading, createItem, updateItem, deleteItem, fetchData };
+  return { data, loading, createItem, updateItem, deleteItem, fetchData ,patchItem};
 };
 
 export default useCrud;

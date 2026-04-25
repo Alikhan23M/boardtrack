@@ -1,13 +1,15 @@
 import { NavLink } from "react-router-dom";
-import { BadgeDollarSign, LayoutDashboard, LayoutGrid, Printer, ReceiptText, Users } from "lucide-react";
+import { BadgeDollarSign, LayoutDashboard, LayoutGrid, Printer, ReceiptText, Users, Mail, ArrowUpRight } from "lucide-react";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/clients", label: "Clients", icon: Users },
-  { to: "/boards", label: "Boards", icon: LayoutGrid },
-  { to: "/deals", label: "Deals", icon: BadgeDollarSign },
-  { to: "/installments", label: "Installments", icon: ReceiptText },
-  { to: "/printing-services", label: "Printing Services", icon: Printer },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard/clients", label: "Clients", icon: Users },
+  { to: "/dashboard/boards", label: "Boards", icon: LayoutGrid },
+  { to: "/dashboard/deals", label: "Deals", icon: BadgeDollarSign },
+  { to: "/dashboard/installments", label: "Installments", icon: ReceiptText },
+  { to: "/dashboard/printing-services", label: "Printing Services", icon: Printer },
+  { to: "/dashboard/messages", label: "Messages", icon: Mail },
+  { to: "/", label: "View Site", icon: ArrowUpRight },
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -43,7 +45,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         <nav className="space-y-2">
           {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} onClick={onClose} end={item.to === "/"}>
+            <NavLink key={item.to} to={item.to} onClick={onClose} end={item.to === "/dashboard"}>
               {({ isActive }) => {
                 const Icon = item.icon;
                 return (
