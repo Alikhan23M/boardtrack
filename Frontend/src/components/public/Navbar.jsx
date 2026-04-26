@@ -32,7 +32,8 @@ const Navbar = () => {
           </NavLink>
         </nav>
 
-            <div className="flex justify-center items-center gap-4 ">
+        {/* CTA (desktop) */}
+        <div className="flex justify-center items-center gap-4 ">
           <Link
           to="/contact"
           className="hidden md:inline-block bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700"
@@ -47,7 +48,6 @@ const Navbar = () => {
             Admin
           </Link>
         </div>
-
 
         {/* Mobile Button */}
         <button

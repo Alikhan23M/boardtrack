@@ -1,5 +1,5 @@
-import { NavLink } from "react-router-dom";
-import { BadgeDollarSign, LayoutDashboard, LayoutGrid, Printer, ReceiptText, Users, Mail, ArrowUpRight } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { BadgeDollarSign, LayoutDashboard, LayoutGrid, Printer, ReceiptText, Users, Mail, ArrowUpRight, LogOut } from "lucide-react";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -13,6 +13,7 @@ const navItems = [
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   return (
     <>
       <div
@@ -21,9 +22,8 @@ const Sidebar = ({ isOpen, onClose }) => {
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 transform border-r border-slate-200 bg-white px-5 py-6 shadow-xl transition-transform duration-300 md:translate-x-0 md:shadow-none ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 w-72 transform border-r border-slate-200 bg-white px-5 py-6 shadow-xl transition-transform duration-300 md:translate-x-0 md:shadow-none ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -50,11 +50,10 @@ const Sidebar = ({ isOpen, onClose }) => {
                 const Icon = item.icon;
                 return (
                   <span
-                    className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${
-                      isActive
+                    className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${isActive
                         ? "bg-teal-600 text-white shadow-[0_10px_24px_rgba(13,148,136,0.28)]"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
+                      }`}
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
@@ -63,6 +62,18 @@ const Sidebar = ({ isOpen, onClose }) => {
               }}
             </NavLink>
           ))}
+          {/* add a logout button to logout the user */}
+          <button
+            className=" cursor-pointer w-full flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition text-slate-600 hover:bg-slate-100 hover:text-slate-900 hover:bg-teal-600 hover:text-white hover:shadow-[0_10px_24px_rgba(13,148,136,0.28)]"
+             onClick={()=>{
+              localStorage.removeItem("token");
+              navigate('/login')
+              
+            }}
+          >
+           <LogOut className="h-4 w-4"/>
+            Logout
+          </button>
         </nav>
       </aside>
     </>
