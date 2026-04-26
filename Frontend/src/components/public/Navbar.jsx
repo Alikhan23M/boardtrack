@@ -32,8 +32,7 @@ const Navbar = () => {
           </NavLink>
         </nav>
 
-        {/* CTA (desktop) */}
-        <div className="flex justify-center items-center gap-4">
+            <div className="flex justify-center items-center gap-4 ">
           <Link
           to="/contact"
           className="hidden md:inline-block bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700"
@@ -43,11 +42,12 @@ const Navbar = () => {
          <Link
             to="/dashboard"
             onClick={() => setOpen(false)}
-            className="block text-center bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700"
+            className="hidden md:inline-block block text-center bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700"
           >
             Admin
           </Link>
         </div>
+
 
         {/* Mobile Button */}
         <button
